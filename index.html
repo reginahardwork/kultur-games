@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Гадание по картинам</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+<style>
+  @font-face { font-family: "Copper"; src: url("Copperplate.ttf"); }
+  :root {
+    --wall: #2b0c11; --wall2: #170507; --cream: #eee2cc; --gold: #c4a062; --ink: #3c240e; --red: #96242a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--wall2);
+    color: var(--cream);
+    font-family: "Cormorant Garamond", Georgia, serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  .room {
+    min-height: 100%;
+    padding: 28px 18px 32px;
+    display: flex; flex-direction: column; align-items: center;
+    background:
+      radial-gradient(ellipse 60% 45% at 50% 38%, rgba(160, 86, 62, .45), transparent 70%),
+      repeating-linear-gradient(90deg, rgba(255,255,255,.025) 0 17px, transparent 17px 36px),
+      linear-gradient(var(--wall), var(--wall2));
+  }
+  .head { text-align: center; margin-bottom: 22px; }
+  .head h1 { font-family: "Copper", serif; font-weight: normal; letter-spacing: .2em; font-size: 17px; white-space: nowrap; }
+  .head p { font-family: "Copper", serif; font-size: 10px; letter-spacing: .3em; color: var(--gold); margin-top: 8px; }
+  .lamp {
+    width: 120px; height: 10px; border-radius: 0 0 60px 60px; background: #1a0d08; margin: 14px auto 0;
+    box-shadow: 0 6px 30px 10px rgba(255, 196, 120, .25);
+  }
+  .stage { perspective: 1400px; width: min(88vw, 360px); }
+  .card {
+    position: relative; width: 100%; aspect-ratio: 3 / 4;
+    transform-style: preserve-3d; transition: transform 1.1s cubic-bezier(.2, .8, .2, 1);
+  }
+  .card.flip { transform: rotateY(180deg); }
+  .face {
+    position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .back {
+    border-radius: 10px;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(196,160,98,.18) 0 22%, transparent 23%),
+      repeating-conic-gradient(from 0deg, rgba(196,160,98,.12) 0 6deg, transparent 6deg 12deg),
+      #3a0f15;
+    border: 2px solid var(--gold); box-shadow: inset 0 0 0 8px #3a0f15, inset 0 0 0 9px rgba(196,160,98,.6), 0 30px 60px rgba(0,0,0,.6);
+    font-family: "Copper", serif; font-size: 64px; color: var(--gold);
+  }
+  .front { transform: rotateY(180deg); }
+  .frame {
+    max-width: 100%; max-height: 100%;
+    border: 26px solid transparent;
+    border-image: url("frame.jpg") 145 stretch;
+    background: #120808;
+    box-shadow: 0 28px 50px rgba(0,0,0,.65);
+  }
+  .frame img { display: block; max-width: calc(min(88vw, 360px) - 52px); max-height: calc(min(88vw, 360px) * 4 / 3 - 52px); }
+  .plaque {
+    margin-top: 18px; padding: 6px 18px; border: 1px solid #7a5a2d;
+    background: linear-gradient(#e1c07a, #b58d4c 60%, #caa463);
+    color: var(--ink); font-family: "Copper", serif; font-size: 13px; letter-spacing: .08em; text-align: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,.5); opacity: 0; transition: opacity .6s .9s;
+  }
+  .reveal { opacity: 0; transform: translateY(14px); transition: opacity .8s, transform .8s; }
+  .show .plaque { opacity: 1; }
+  .show .reveal { opacity: 1; transform: none; }
+  .show .r1 { transition-delay: 1.1s; } .show .r2 { transition-delay: 1.5s; } .show .r3 { transition-delay: 1.9s; }
+  .note { margin-top: 10px; font-size: 14px; color: var(--gold); font-style: italic; text-align: center; min-height: 1em; }
+  .pred {
+    margin-top: 18px; max-width: 360px; text-align: center;
+    font-size: 25px; line-height: 1.22; font-weight: 600; color: var(--cream);
+  }
+  .pred .name { color: #f1c27d; }
+  .fact { margin-top: 14px; max-width: 330px; text-align: center; font-size: 17px; font-style: italic; color: rgba(238,226,204,.75); }
+  .btns { margin-top: 26px; display: flex; gap: 10px; }
+  button {
+    font-family: "Copper", serif; font-size: 12px; letter-spacing: .14em;
+    padding: 12px 16px; border-radius: 3px; cursor: pointer;
+    border: 1px solid var(--gold); background: transparent; color: var(--cream);
+  }
+  button.main { background: var(--red); border-color: #c4564c; }
+  .err { margin-top: 40px; text-align: center; font-size: 18px; }
+</style>
+</head>
+<body>
+<div class="room" id="room">
+  <div class="head">
+    <h1>ГАДАНИЕ ПО КАРТИНАМ</h1>
+    <p>КУЛЬТУРНО ВЫРАЖАЯСЬ</p>
+  </div>
+  <div class="stage">
+    <div class="card" id="card">
+      <div class="face back" id="backNum">?</div>
+      <div class="face front"><div class="frame"><img id="art" alt=""></div></div>
+    </div>
+  </div>
+  <div class="plaque" id="plaque"></div>
+  <div class="note reveal r1" id="note"></div>
+  <div class="pred reveal r2" id="pred"></div>
+  <div class="fact reveal r3" id="fact"></div>
+  <div class="btns reveal r3">
+    <button class="main" id="share">ПОДЕЛИТЬСЯ</button>
+    <button id="close">В КАНАЛ</button>
+  </div>
+</div>
+<script>
+(function () {
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) {
+    tg.ready(); tg.expand();
+    try { tg.setHeaderColor("#2b0c11"); tg.setBackgroundColor("#170507"); } catch (e) {}
+  }
+  var qs = new URLSearchParams(location.search);
+  var start = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || qs.get("tgWebAppStartParam") || qs.get("g") || "";
+  var parts = start.split("_");
+  var gid = (parts[0] || "").replace(/[^a-z0-9]/gi, "");
+  var pick = parseInt(parts[1] || "1", 10);
+  var user = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || {};
+  var $ = function (id) { return document.getElementById(id); };
+
+  function cloudGet(key) {
+    return new Promise(function (res) {
+      try { tg.CloudStorage.getItem(key, function (err, v) { res(err ? null : v); }); }
+      catch (e) { res(null); }
+    });
+  }
+  function cloudSet(key, v) { try { tg.CloudStorage.setItem(key, String(v)); } catch (e) {} }
+  function esc(s) { var d = document.createElement("div"); d.textContent = s || ""; return d.innerHTML; }
+
+  function fail(msg) { $("room").insertAdjacentHTML("beforeend", '<div class="err">' + msg + "</div>"); }
+
+  if (!gid) { fail("Эта игра открывается из канала «Культурно выражаясь» 🕯"); return; }
+
+  fetch("games/" + gid + ".json?" + Date.now()).then(function (r) {
+    if (!r.ok) throw new Error(r.status);
+    return r.json();
+  }).then(function (g) {
+    var isOwner = user.id && String(user.id) === String(g.owner);
+    var key = "pick_" + gid;
+    return (isOwner || !tg ? Promise.resolve(null) : cloudGet(key)).then(function (saved) {
+      var again = false;
+      if (saved && !isNaN(parseInt(saved, 10))) { again = parseInt(saved, 10) !== pick; pick = parseInt(saved, 10); }
+      else if (!isOwner) cloudSet(key, pick);
+      var c = g.cards[Math.min(Math.max(pick, 1), g.cards.length) - 1];
+      var variants = c.popups && c.popups.length ? c.popups : [c.popup || ""];
+      var v = variants[(user.id || 0) % variants.length].trim();
+      var name = (user.first_name || "").replace(/[<>&"]/g, "").slice(0, 20);
+      var predHtml = name ? '<span class="name">' + esc(name) + ",</span> " + esc(v.charAt(0).toLowerCase() + v.slice(1))
+                          : esc(v.charAt(0).toUpperCase() + v.slice(1));
+      $("backNum").textContent = c.n;
+      $("plaque").textContent = c.artist + " · «" + c.title + "»" + (c.year ? ", " + c.year : "");
+      $("note").textContent = again ? "Твоя картина уже выбрана — судьбу не переиграешь 😏" : "";
+      $("pred").innerHTML = "🔮 " + predHtml;
+      $("fact").textContent = c.fact || "";
+      var img = $("art");
+      img.onload = function () {
+        var r = img.naturalWidth / img.naturalHeight;
+        var maxW = Math.min(window.innerWidth * 0.88, 360) - 52, maxH = maxW * 4 / 3;
+        var w = Math.min(maxW, maxH * r), h = w / r;
+        $("card").style.aspectRatio = (w + 52) + " / " + (h + 52);
+        setTimeout(function () {
+          $("card").classList.add("flip");
+          document.body.classList.add("show");
+          if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred("medium");
+        }, 500);
+      };
+      img.src = c.img;
+      $("share").onclick = function () {
+        var text = "Мне выпала картина «" + c.title + "» и предсказание: " + v + "\nПогадай тоже 🔮";
+        var url = "https://t.me/share/url?url=" + encodeURIComponent(g.channel || "https://t.me/artist_talks") +
+                  "&text=" + encodeURIComponent(text);
+        if (tg) tg.openTelegramLink(url); else window.open(url);
+      };
+      $("close").onclick = function () { if (tg) tg.close(); else history.back(); };
+    });
+  }).catch(function () { fail("Не получилось открыть игру. Попробуй ещё раз чуть позже 🕯"); });
+})();
+</script>
+</body>
+</html>
